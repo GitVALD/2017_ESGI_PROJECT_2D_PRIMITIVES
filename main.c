@@ -8,6 +8,9 @@
 #define WIN_H 800
 #define WIN_W 800
 
+#define PAL_H 100
+#define PAL_W 300
+
 // ---------------------------
 // -------- VARIABLES --------
 // ---------------------------
@@ -39,16 +42,31 @@ int yB;
 int xC;
 int yC;
 
+// Variable coord click palette
+int xPal;
+int yPal;
+
+float red, green, blue = 1.0;
+
 int xmin = -200;
 int xmax = 200;
 int ymin = -200;
 int ymax = 200;
 
+// Variable couleurs
+float colors[6][3] = {
+        {1.0, 0.0, 0.0},    // Red
+        {0.0, 1.0, 0.0},    // Green
+        {0.0, 0.0, 1.0},    // Blue
+        {1.0, 1.0, 0.0},
+        {1.0, 0.0, 1.0},
+        {0.0, 1.0, 1.0}
+};
+
 // ---------------------------
 // -------- FONCTIONS --------
 // ---------------------------
-OutCode ComputeOutCode(int x, int y)
-{
+OutCode ComputeOutCode(int x, int y) {
     OutCode code;
 
     code = INSIDE;          // initialised as being inside of [[clip window]]
@@ -64,8 +82,6 @@ OutCode ComputeOutCode(int x, int y)
 
     return code;
 }
-
-
 
 void deleteCoord(){
     xA = 0;
@@ -99,7 +115,8 @@ void createMenu(){
     glutAddMenuEntry("Rectangle",6);
     glutAddMenuEntry("Triangle", 7);
     glutAddMenuEntry("Cercle", 8);
-    glutAddMenuEntry("Arc de cercle", 9);
+    glutAddMenuEntry("Arc de cercle (2e Octant)", 9);
+    glutAddMenuEntry("Arc de cercle (Entier)", 14);
     glutAddMenuEntry("Ellipse 1", 12);
     glutAddMenuEntry("Ellipse 2", 13);
     glutAddMenuEntry("Fenetrage simple (Cohen-Sutherland) : Segment", 10);
@@ -146,7 +163,7 @@ void mouse(int btn, int state, int x, int y){
     }
 
     // Coord pour triangle
-    if(value == 7){
+    if(value == 7 || value == 14){
         if(btn == GLUT_LEFT_BUTTON && state == GLUT_DOWN){
             if(!isSecondClick){
                 xA = x -= WIN_W/2;
@@ -171,10 +188,26 @@ void mouse(int btn, int state, int x, int y){
    glutPostRedisplay();
 }
 
+void mousePal(int btn, int state, int xPal, int yPal){
+
+    unsigned int pixel;
+    if(btn == GLUT_LEFT_BUTTON && state == GLUT_DOWN){
+
+        printf("xPal: %d  yPal: %d\n", xPal, yPal);
+        glReadPixels(xPal, glutGet(GLUT_WINDOW_HEIGHT) - yPal, 1, 1, GL_RGB, GL_UNSIGNED_BYTE, &pixel);
+
+        red = (float)((pixel & 0x0000FF))/255;
+        green = (float)((pixel & 0x00FF00)>>8)/255;
+        blue = (float)((pixel & 0xFF0000)>>16)/255;
+        printf("red: %f | green: %f | blue: %f\n", red, green, blue);
+    }
+
+}
+
 //Dessine un pixel
 void drawPixel(int x, int y){
     glBegin(GL_POINTS);
-        glColor3f(1.0, 0.0, 0.0);
+        glColor3f(red, green, blue);
         glVertex2i(x, y);
     glEnd();
 }
@@ -242,6 +275,78 @@ void bresenhamArc(int xA, int yA, int xB, int yB){
         x++;
         drawPixel(x, y);
     }
+}
+
+void bresenhamArc2(int xA, int yA, int xB, int yB, int xC, int yC){
+    int R = (int) sqrt((xB - xA) * (xB - xA) + (yB - yA) * (yB - yA));
+    int x = 0;
+    int y = R;
+    int dp = 5 - (4 * R);
+
+    xA = (xA + xB)/2;
+    yA = (yA + yB)/2;
+
+    if((xC >= xA) && (yC >= yA)){
+        while(y >= x){
+            if((xA + x) >= xC)
+                drawPixel(xA + x, yB + y);
+            if((xA + y) >= xC)
+                drawPixel(xA + y, yB + x);
+            if(dp <= 0)
+                dp += 8 * x + 12;
+            else{
+                dp += 8 * (x - y) + 20;
+                y--;
+            }
+            x++;
+        }
+    }
+    else if((xC >= xA) && (yC <= yA)){
+        while(y >= x){
+            if((xA + x) >= xC)
+                drawPixel(xA + x, yB - y);
+            if((xA + y) >= xC)
+                drawPixel(xA + y, yB - x);
+            if(dp <= 0)
+                dp += 8 * x + 12;
+            else{
+                dp += 8 * (x - y) + 20;
+                y--;
+            }
+            x++;
+        }
+    }
+    else if((xC <= xA) && (yC >= yA)){
+        while(y >= x){
+            if((xA - x) <= xC)
+                drawPixel(xA - x, yB + y);
+            if((xA - y) <= xB)
+                drawPixel(xA - y, yB + x);
+            if(dp <= 0)
+                dp += 8 * x + 12;
+            else{
+                dp += 8 * (x - y) + 20;
+                y--;
+            }
+            x++;
+        }
+    }
+    else if((xC <= xA) && (yC <= yA)){
+        while(y >= x){
+            if((xA - x) <= xC)
+                drawPixel(xA - x, yB - y);
+            if((xA - y) <= xC)
+                drawPixel(xA - y, y - x);
+            if(dp <= 0)
+                dp += 8 * x + 12;
+            else{
+                dp += 8 * (x - y) + 20;
+                y--;
+            }
+            x++;
+        }
+    }
+    glFlush();
 }
 
 void bresenhamCercle(int xA, int yA, int xB, int yB){
@@ -459,6 +564,7 @@ void square(){
         bresenham((xA+200), yA, (xA+200), (yA+200));
         bresenham((xA+200), (yA+200), xA, (yA+200));
         bresenham(xA, (yA+200), xA, yA);
+        glutSwapBuffers();
         deleteCoord();
     }
 
@@ -468,6 +574,7 @@ void square(){
         bresenham((xA+400), yA, (xA+400), (yA+400));
         bresenham((xA+400), (yA+400), xA, (yA+400));
         bresenham(xA, (yA+400), xA, yA);
+        glutSwapBuffers();
         deleteCoord();
     }
 
@@ -477,6 +584,7 @@ void square(){
         bresenham((xA+600), yA, (xA+600), (yA+600));
         bresenham((xA+600), (yA+600), xA, (yA+600));
         bresenham(xA, (yA+600), xA, yA);
+        glutSwapBuffers();
         deleteCoord();
     }
 }
@@ -489,6 +597,7 @@ void rectangle(){
         bresenham(xB, yA, xB, yB);
         bresenham(xB, yB, xA, yB);
         bresenham(xA, yB, xA, yA);
+        glutSwapBuffers();
         deleteCoord();
     }
 }
@@ -498,6 +607,7 @@ void triangle(){
         bresenham(xA,yA, xB,yB);
         bresenham(xB,yB, xC, yC);
         bresenham(xC, yC, xA, yA);
+        glutSwapBuffers();
         deleteCoord();
     }
 }
@@ -505,13 +615,23 @@ void triangle(){
 void cercle(){
     if(!isSecondClick){
         bresenhamCercle(xA, yA, xB, yB);
+        glutSwapBuffers();
         deleteCoord();
     }
 }
 
-void arc(){
+void arc2eOctant(){
     if(!isSecondClick){
         bresenhamArc(xA, yA, xB, yB);
+        glutSwapBuffers();
+        deleteCoord();
+    }
+}
+
+void arcEntier(){
+    if(!isSecondClick && !isThirdClick){
+        bresenhamArc2(xA, yA, xB, yB, xC, yC);
+        glutSwapBuffers();
         deleteCoord();
     }
 }
@@ -519,6 +639,7 @@ void arc(){
 void ellipse1(){
     if(!isSecondClick){
         bresenhamEllipse(xA, yA, xB, yB);
+        glutSwapBuffers();
         deleteCoord();
     }
 }
@@ -526,6 +647,7 @@ void ellipse1(){
 void ellipse2(){
     if(!isSecondClick){
         bresenhamEllipse2(xA, yA, xB, yB);
+        glutSwapBuffers();
     }
 }
 
@@ -560,7 +682,7 @@ void display(){
             cercle();
             break;
         case 9:
-            arc(); // Arc dans le deuxieme octant
+            arc2eOctant(); // Arc dans le deuxieme octant
             break;
         case 10:
         case 11:
@@ -572,7 +694,70 @@ void display(){
         case 13:
             ellipse2();
             break;
+        case 14:
+            arcEntier();
     }
+
+    glFlush();
+}
+
+void displayPal(){
+
+    float rgb[3] = {0};
+
+    int xTmp = 0 - PAL_W / 2;
+    int yTmp = 50 - PAL_H / 2;
+
+    // Dessine les cubes de couleurs
+    for(int i = 0; i < 6; i++){
+        for(int j = 0; j < 3; j++){
+            rgb[j] = colors[i][j];
+        }
+
+
+        glBegin(GL_POLYGON);
+            glColor3f(rgb[0], rgb[1], rgb[2]);
+            glVertex2f(xTmp, yTmp);
+
+
+            glColor3f(rgb[0], rgb[1], rgb[2]);
+            glVertex2f(xTmp + 50, yTmp);
+
+
+            glColor3f(rgb[0], rgb[1], rgb[2]);
+            glVertex2f(xTmp + 50, yTmp + 50);
+
+
+            glColor3f(rgb[0], rgb[1], rgb[2]);
+            glVertex2f(xTmp, yTmp + 50);
+        glEnd();
+        xTmp += 50;
+
+    }
+
+    // Nouvelle ligne
+    xTmp = 0 - PAL_W / 2;
+    yTmp -= 50;
+
+    // Black color
+    glBegin(GL_POLYGON);
+        glColor3f(0.0, 0.0, 0.0);
+        glVertex2f(xTmp, yTmp);
+        glVertex2f(xTmp + 150, yTmp);
+        glVertex2f(xTmp + 150, yTmp + 50);
+        glVertex2f(xTmp, yTmp + 50);
+    glEnd();
+
+    xTmp += 150;
+
+    // White Color
+    glBegin(GL_POLYGON);
+        glColor3f(1.0, 1.0, 1.0);
+        glVertex2f(xTmp, yTmp);
+        glVertex2f(xTmp + 150, yTmp);
+        glVertex2f(xTmp + 150, yTmp + 50);
+        glVertex2f(xTmp, yTmp + 50);
+    glEnd();
 
     glFlush();
 }
@@ -583,6 +768,21 @@ void display(){
 
 int main(int argc, char **argv){
     glutInit(&argc, argv);
+
+    // Fenetre de la palette
+    glutInitWindowSize(PAL_W, PAL_H);
+    glutInitWindowPosition(1300, 200);
+    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB | GLUT_DEPTH);
+    glutCreateWindow("Palette de couleur");
+
+    glutMouseFunc(mousePal);
+    glutDisplayFunc(displayPal);
+    gluOrtho2D(-PAL_W/2, PAL_W/2,-PAL_H/2, PAL_H/2 );
+    glClearColor(0.0, 0.0, 0.0, 0.0);
+
+
+
+    // Fenetre de dessin
     glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB | GLUT_DEPTH);
     glutInitWindowSize(WIN_H, WIN_W);
     glutInitWindowPosition (500, 200);
@@ -590,6 +790,7 @@ int main(int argc, char **argv){
 
     // Paramètre du plan orthonormé
     gluOrtho2D(-WIN_W/2,WIN_W/2,-WIN_W/2,WIN_W/2);
+
     //Couleur de la fenêtre
     glClearColor(1.0, 1.0, 1.0, 0.0);
     glColor3f(1.0, 1.0, 1.0);
@@ -599,8 +800,8 @@ int main(int argc, char **argv){
 
     createMenu();
     glutMouseFunc(mouse);
-
     glutDisplayFunc(display);
+
     glutMainLoop();
     return 0;
 }
