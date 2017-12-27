@@ -132,7 +132,6 @@ void mouse(int btn, int state, int x, int y){
     // Coord pour Segment / Cercle /
     if(     value == 2 ||
             value == 6 ||
-            value == 8 ||
             value == 9 ||
             value == 10||
             value == 11||
@@ -150,6 +149,24 @@ void mouse(int btn, int state, int x, int y){
                 fprintf(stdout, "xB : %d, yB : %d\n", xB, yB);
                 isSecondClick = 0;
             }
+        }
+    }
+
+    if( value == 8 ){
+        if(btn == GLUT_LEFT_BUTTON && state == GLUT_DOWN){
+            if(!isSecondClick){
+                xA = x -= WIN_W/2;
+                yA = y = -y + WIN_H/2;
+                fprintf(stdout, "xA : %d, yA : %d", xA, yA);
+                isSecondClick = 1;
+            }
+        }
+
+        if(btn == GLUT_LEFT_BUTTON && state == GLUT_UP){
+            xB = x -= WIN_W/2;
+            yB = y = -y + WIN_H/2;
+            fprintf(stdout, "xB : %d, yB : %d\n", xB, yB);
+            isSecondClick = 0;
         }
     }
 
